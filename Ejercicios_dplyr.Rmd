@@ -128,7 +128,60 @@ iris %>% select_all(toupper)
 ## Crea nuevas variables
 ```{r mutate}
 mutate(mtcars, gpm = 1/mpg) #crea columna nueva
+```
+```{r transmute}
 transmute(mtcars, gpm = 1/mpg) #crea columna nueva y todas las que esten nombradas en el transmute, las demas las elimina
+```
+
+mutate_all, at, if: si se aplican sobre un tibble agrupado, estas operacioness no se aplican sobre las variables agrupadas. El comportamiento depende si la seleccion es: 
+* implicita (all e if): las variables agrupadas se ignoran...no hace nada pero no da error.
+* explicita (mutate_at) evitar variables agrupadas con -group_cols() para evitar error:
+ data %>% mutate_at(vars(-group_cols(), ...), myoperati
+```{r mutate_all}
+#mutate_all(.tbl, .funs, …) Aplica funs a cada columna. Usar con funs().
+mutate_all(faithful, funs(log(.), log2(.)))
+
+```
+```{r mutate_at}
+scale2 <- function(x, na.rm = FALSE) (x - mean(x, na.rm = na.rm)) / sd(x, na.rm)
+
+starwars %>% mutate_at(c("height", "mass"), scale2)
+starwars %>% mutate(across(c("height", "mass"), scale2))
+# también se pueden usar funciones de ayuda de selección:
+iris %>% mutate_at(vars(matches("Sepal")), log)
+iris %>% mutate(across(matches("Sepal"), log))
+```
+
+* mutate_if aplica una funcion predicado(que devuelve si o no), y aplica la función para el mutate_if a aquellas variables que de TRUE 
+* es muy util para pasar variables de un tipo a otro.
+* Si quieres aplicar multiples transformaciones, pasa una lista de
+  funciones. Cuando hay multiples funciones, they create new
+ variables instead of modifying the variables in place:
+```{r mutate_if}
+starwars %>% mutate_if(is.numeric, scale2, na.rm = TRUE)
+starwars %>% mutate(across(where(is.numeric), ~ scale2(.x, na.rm = TRUE)))
+iris %>% mutate(across(where(is.factor), as.character))
+iris %>% mutate(across(where(is.double), as.integer))
+
+#con lista de transformaciones
+iris %>% mutate_if(is.numeric, list(scale2, log))
+iris %>% mutate_if(is.numeric, list(~scale2(.), ~log(.)))
+iris %>% mutate_if(is.numeric, list(scale = scale2, log = log))
+# ->
+iris %>%
+  as_tibble() %>%
+  mutate(across(where(is.numeric), list(scale = scale2, log = log)))
+
+# When there's only one function in the list, it modifies existing
+# variables in place. Give it a name to instead create new variables:
+iris %>% mutate_if(is.numeric, list(scale2))
+iris %>% mutate_if(is.numeric, list(scale = scale2))
+```
+
+Para añadir nuevas columnas, se puede decir antes o despues y si tiene que reparar nombre si esta duplicado (minimal, unique, check_unique, universal):
+
+```{r add_column}
+add_column(mtcars, new = 1:32)
 ```
 
 
@@ -138,4 +191,6 @@ mtcars %>%
   rename_with(toupper) #todo en mayúsculas
 ```
 
+# Resumir casos:
 
+# Agrupar casos:
