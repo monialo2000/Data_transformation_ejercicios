@@ -1,0 +1,243 @@
+---
+title: "Tidy_evaluation"
+author: "Mónica Alonso"
+date: "7/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(datos)
+```
+
+## Tidy evaluation: 
+tipo de evaluación no estandar usada en tidyverse.  
+* arrange(), count(), filter(), group_by(), mutate() y summarise() usan **data_masking** por ejemplo se pueden usar las variables como si fueran variables en el ambiente (se puede escribir mi_variable en vez de df$mi_variable).
+    *env-variables: son del programa, en gral creadas con <-
+    *data-variables: son variables "estáticas" que viven en el            dataframe, por ej. csv o xls), o manipulando variables existentes
+    
+```{r ejemplo_data_masking}
+df <- data.frame(x = runif(3), y = runif(3)) #df es una env-variable
+df$x   # x es una data-variable fuera de la env-variable df usando $
+
+```
+### Indirection  
+Los dos problemas principales son:
+ * data-variable como argumento de función, se necesitas abrazar el argumento rodeandolo con llaves dobles, como filter(df, {{ var }})
+ * cuando tienes una env_variable que es un vector de caracteres, y necesitas indexar en el .data con [[,
+ como ```summarise(df, mean(.data[[ var]]))```
+ 
+```{r ejemplo_embracing}
+var_summary <- function(data, var) {
+  data %>% 
+    summarise(n = n(), min= min({{ var }}), max = max({{ var }}))
+}
+mtcars %>% 
+  group_by(cyl) %>% 
+  var_summary(mpg)
+```
+
+```{r usando_for}
+for (var in names(mtcars)) {
+ mtcars %>% count(.data[[var]]) %>% print() 
+}  #notar que .data no es un dataframe, es una construccion especial, 
+#un pronombre, que permite acceder a la variable actual sea directamt, con .data$x indirectamente con .data[[ var ]]. No esperar otras funciones que trabajen con esto.
+```
+## Tidy selection  
+data masking hace facil trabajar con valores de un data set. Tidy selection es una herramienta complementaria q hace facil trabajar con columnas de un data set.
+
+Debajo de las funciones q usan tidy selection está el pkg tidyselect.
+Provee un lenguaje dedominio miniatura q hace facil seleccionar columnas por nombre, posicion o tipo.
+* select(df, 1) o select(df, last_col())  
+* select(df, c(a, b, c)) 
+* select(df, starts_with("a"))
+* select(df, ends_with("z")) 
+* select(df, where(is.numeric))  selecciona columnas numericas  
+
+### Indirection    
+Como en data masking, tidy selection hace faciles tareas comunes, y más duras tareas menos comunes.  Cuando quieres usar tidy select con la especificación de columna almacenada en una variable intermedia, necesitas aprender nuevas herramientas. 2 formas de indirection:
+
+* When you have the data-variable in an env-variable that is a function argument, you use the same technique as data masking: you embrace the argument by surrounding it in doubled braces.
+
+The following function summarises a data frame by computing the mean of all variables selected by the user:
+```{r}
+summarise_mean <- function(data, vars) {
+  data %>% summarise(n = n(), across({{ vars }}, mean))
+}
+mtcars %>% 
+  group_by(cyl) %>% 
+  summarise_mean(where(is.numeric))
+```
+
+When you have an env-variable that is a character vector, you need to use all_of() or any_of() depending on whether you want the function to error if a variable is not found.
+
+The following code uses all_of() to select all of the variables found in a character vector; then ! plus all_of() to select all of the variables not found in a character vector:
+```{r}
+vars <- c("mpg", "vs")
+mtcars %>% select(all_of(vars))
+mtcars %>% select(!all_of(vars))
+```
+
+## How tos
+Los siguientes ejemplos resuelven un buena cantidad de problemas  comunes. Mostraremos una pequeña cantidad de codigo como para que tengas una idea basica; la mayoría de los problemas reales requerirán más código o multiples tecnicas combinadas.
+
+### User-supplied data
+si chequeas  la documentacion, verás que  .data nunca usa data masking o tidy select. O sea, no necesitas hacer nada especial en tu funcion:
+
+```{r data_de_usuario}
+mutate_y <- function(data) {
+  mutate(data, y = a + x)
+}
+```
+
+### Eliminando  R CMD check NOTEs
+If you’re writing a package and you have a function that uses data-variables:
+
+```{r writing_package}
+my_summary_function <- function(data) {
+  data %>% 
+    filter(x > 0) %>% 
+    group_by(grp) %>% 
+    summarise(y = mean(y), n = n())
+}
+```
+Tendrás un R CMD CHECK NOTE:
+
+```N  checking R code for possible problems
+   my_summary_function: no visible binding for global variable ‘x’, ‘grp’, ‘y’
+   Undefined global functions or variables:
+     x grp y```
+
+You can eliminate this by using .data$var and importing .data from its source in the rlang package (the underlying package that implements tidy evaluation):
+
+```{r rlang_data}
+#' @importFrom rlang .data
+my_summary_function <- function(data) {
+  data %>% 
+    filter(.data$x > 0) %>% 
+    group_by(.data$grp) %>% 
+    summarise(y = mean(.data$y), n = n())
+}
+```
+
+### Una o más expresiones user-supplied
+Si quiere que el usuario proporcione una expresión que se pasa a un argumento que utiliza data masking o tidy select, ponga entre llaves el argumento:
+```{r}
+my_summarise <- function(data, group_var) {
+  data %>%
+    group_by({{ group_var }}) %>%
+    summarise(mean = mean(mass))
+}
+```
+
+This generalises in a straightforward way if you want to use one user-supplied expression in multiple places:
+
+```{r}
+my_summarise2 <- function(data, expr) {
+  data %>% summarise(
+    mean = mean({{ expr }}),
+    sum = sum({{ expr }}),
+    n = n()
+  )
+}
+```
+
+If you want the user to provide multiple expressions, embrace each of them:
+
+```{r}
+my_summarise3 <- function(data, mean_var, sd_var) {
+  data %>% 
+    summarise(mean = mean({{ mean_var }}), sd = mean({{ sd_var }}))
+}
+```
+
+
+If you want to use the names of variables in the output, you can use glue syntax in conjunction with :=:
+```{r}
+my_summarise4 <- function(data, expr) {
+  data %>% summarise(
+    "mean_{{expr}}" := mean({{ expr }}),
+    "sum_{{expr}}" := sum({{ expr }}),
+    "n_{{expr}}" := n()
+  )
+}
+
+my_summarise5 <- function(data, mean_var, sd_var) {
+  data %>% 
+    summarise(
+      "mean_{{mean_var}}" := mean({{ mean_var }}), 
+      "sd_{{sd_var}}" := mean({{ sd_var }})
+    )
+}
+```
+
+### Any number of user-supplied expressions
+If you want to take an arbitrary number of user supplied expressions, use .... This is most often useful when you want to give the user full control over a single part of the pipeline, like a group_by() or a mutate().
+
+```{r eval=FALSE}
+my_summarise <- function(.data, ...) {
+  .data %>%
+    group_by(...) %>%
+    summarise(mass = mean(mass, na.rm = TRUE), height = mean(height, na.rm = TRUE))
+starwars %>% my_summarise(homeworld)
+starwars %>% my_summarise(sex, gender)
+}
+
+```
+When you use ... in this way, make sure that any other arguments start with . to reduce the chances of argument clashes; see <https://design.tidyverse.org/dots-prefix.html> for more details.
+
+### Transforming user-supplied variables
+
+Si quieres que el usuario proporcione un conjuto de data-variables y sean transformadas, usa across():
+
+```{r across}
+my_summarise <- function(data, summary_vars) {
+  data %>%
+    summarise(across({{ summary_vars }}, ~ mean(., na.rm = TRUE)))
+}
+starwars %>% 
+  group_by(species) %>% 
+  my_summarise(c(mass, height))
+```
+Puedes usar esta misma idea para múltiples sets de data-variable input:
+
+```{r}
+my_summarise <- function(data, group_var, summarise_var) {
+  data %>%
+    group_by(across({{ group_var }})) %>% 
+    summarise(across({{ summarise_var }}, mean))
+}
+```
+Usa el argumento .names para across() para controlar los nombres de la salida:
+
+```{r}
+my_summarise <- function(data, group_var, summarise_var) {
+  data %>%
+    group_by(across({{ group_var }})) %>% 
+    summarise(across({{ summarise_var }}, mean, .names = "mean_{.col}"))
+}
+```
+
+### Loop sobre muchas variables:
+
+If you have a character vector of variable names, and want to operate on them with a for loop, index into the special .data pronoun:
+
+```{r}
+for (var in names(mtcars)) {
+  mtcars %>% count(.data[[var]]) %>% print()
+}
+```
+
+La misma técnica funciona con las funciones alternativas a loops de Rbase: apply() o de purrr: map().
+
+```{r}
+mtcars %>% 
+  names() %>% 
+  purrr::map(~ count(mtcars, .data[[.x]]))
+```
+
+1.la funcion de dplyr filter() está inspirada subset() de R base. subset() provee data masking, pero no funciona con tidy evaluation.
+
+1. En R, los argumentos son lazily evaluated. O sea, hasta que no los usas, no mantienen un valor. Puedes aprender más en: <https://adv-r.hadley.nz/functions.html#lazy-evaluation> ︎
+

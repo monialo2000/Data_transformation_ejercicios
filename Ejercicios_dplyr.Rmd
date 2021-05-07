@@ -78,8 +78,7 @@ top_n(iris, 5, Sepal.Width) # Selecciona y ordena las n entradas mas altas (por 
 ```
 
 ## Ordenar casos
-arrange(.data, …) Ordena filas por valores de una columna (bajo a alto), usa con desc() para
-ordenar de alto a bajo.
+arrange(.data, …) Ordena filas por valores de una columna (bajo a alto), usar con desc() para ordenar de alto a bajo.
 
 ```{r arrange}
 arrange(mtcars, mpg) #ASCENDENTE
@@ -155,8 +154,8 @@ iris %>% mutate(across(matches("Sepal"), log))
 * mutate_if aplica una funcion predicado(que devuelve si o no), y aplica la función para el mutate_if a aquellas variables que de TRUE 
 * es muy util para pasar variables de un tipo a otro.
 * Si quieres aplicar multiples transformaciones, pasa una lista de
-  funciones. Cuando hay multiples funciones, they create new
- variables instead of modifying the variables in place:
+  funciones. Cuando hay multiples funciones, se crean nuevas
+ variables en vez de modificar las variables que existen:
 ```{r mutate_if}
 starwars %>% mutate_if(is.numeric, scale2, na.rm = TRUE)
 starwars %>% mutate(across(where(is.numeric), ~ scale2(.x, na.rm = TRUE)))
@@ -191,6 +190,32 @@ mtcars %>%
   rename_with(toupper) #todo en mayúsculas
 ```
 
-# Resumir casos:
+## Resumir casos: 
+Crean un nuevo dataframe. Se aplican funciones de resumen sobre vectores. Tendràn 1 o varias filas segùn la combinaciòn de variables de agrupamiento. Si no hay variables de agrupamiento tendremos 1 ùnica fila resumiento todas las observaciones. Tendrà una columna para cada variable de agrupamiento y 1 columna por c/estadìstico de resumen que se especifique.
+
+Funciones útiles:
+centrado: mean(), median()
+desvio: sd(), IQR(), mad()
+rango: min(), max(), quantile()
+posiciòn: first(), last(), nth()
+cuenta: n(), n_distinct()
+logicas: any(), all()
+
+*es conveniente usar nuevos nombres de variables para las variables de resumen, porque sino sobreescriben las existentes (especialmente cuando se usan mùltiples resumenes)*  
+
+* across(), relocate(), rename(), select(), y pull() usan **tidy selection**, puedes elegir variables basados en su posicion, nombre o tipo (por ejemplo starts_with(), o is.numeric())
+
+
+```{r summarise}
+mtcars %>% 
+  group_by(cyl) %>% 
+  summarise(mean = mean(disp), n = n())
+mtcars %>% 
+  group_by(mpg) %>% 
+  summarise(mean = mean(disp), n = n()) %>% 
+  group_vars()
+
+summarise(mtcars, avg = mean(mpg))
+```
 
 # Agrupar casos:
