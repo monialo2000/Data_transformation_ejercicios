@@ -218,4 +218,35 @@ mtcars %>%
 summarise(mtcars, avg = mean(mpg))
 ```
 
+```{r count}
+#count(x, ..., wt = NULL, sort = FALSE) Conteo del número de filas en cada grupo, definido por las variables en ...
+count(iris, Species) 
+
+```
+
+VARIACIONES
+summarise_all() - Aplica funs a cada columna
+summarise_at() - Aplica funs a columnas específicas.
+summarise_if() - Aplica funs a todas las columnas de un tipo
+
+
 # Agrupar casos:
+group_by se usa para crear una copia agrupada de un dataset.
+dplyr manipulará las funciones en cada "grupo" por separado, para luego combinar los resultados:
+
+```{r group_by}
+mtcars %>%
+group_by(cyl) %>%
+summarise(avg = mean(mpg))
+```
+
+group_by(.data, ..., add = FALSE) Devuelve copia del cuadro
+agrupado por …
+```{r group_by_1}
+g_iris <- group_by(iris, Species)
+```
+ungroup(x, …) Devuelve copia no-agrupada del cuadro
+```{r ungroup}
+ungroup(g_iris)
+```
+
