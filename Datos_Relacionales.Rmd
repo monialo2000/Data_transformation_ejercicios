@@ -1,0 +1,75 @@
+---
+title: "Datos Relacionales"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(datos)
+```
+Se llama datos relacionales al conjunto de múltiples tablas de datos que se utilizan para combinar, ya que sus relaciones, y no solo los conjuntos de datos individuales, son importantes.  
+
+**Las relaciones siempre se definen sobre un par de tablas.** Todas las otras relaciones se construyen sobre esta idea simple: las relaciones entre tres o más tablas son siempre una propiedad de las relaciones entre cada par. **A veces ambos elementos de un par pueden ser la misma tabla**.  
+
+Existen tres familias de verbos diseñadas para trabajar con datos relacionales:
+
+* **Uniones de transformación** (del inglés **mutating joins**), que agregan nuevas variables a un data frame a partir de las observaciones coincidentes en otra tabla.
+
+* **Uniones de filtro** (del inglés **filtering joins**), que filtran observaciones en un data frame con base en si coinciden o no con una observación de otra tabla.
+
+* **Operaciones de conjuntos** (del inglés **set operations**), que tratan las observaciones como elementos de un conjunto.
+
+El lugar más común para encontrar datos relacionales es en un sistema relacional de administración de bases de datos (Relational Data Base Management System en inglés), un concepto que abarca casi todas las bases de datos modernas. 
+
+Usaremos datos sobre vuelos desde y hacia Nueva York. El paquete datos contiene cinco tibbles que utilizaremos para este propósito: aerolineas, aeropuertos, aviones y clima, que se relacionan con la tabla vuelos. 
+
+![no se pudo imprimir](Datos Relacionales Vuelos.JPG)
+
+
+## Claves 
+
+Las variables usadas para conectar cada par de variables se llaman claves. Una clave es una variable (o un conjunto de variables) que identifican de manera única una observación. Existen dos tipos de claves:  
+* clave **primaria** identifica únicamente una observación en su propia tabla. Por ejemplo, aviones$codigo_cola.  
+* clave foránea únicamente identifica una observación en otra tabla. Por ejemplo, vuelos$codigo_cola.  
+
+Una variable puede ser clave primaria y clave foránea a la vez. Por ejemplo, origen es parte de la clave primaria clima y también una clave foránea de aeropuertos. 
+
+```{r verificar_primary_key}
+aviones %>% 
+  count(codigo_cola) %>% 
+  filter(n > 1)  
+
+# es lo mismo que hacer  aviones %>% group_by(codigo_cola) %>% count() %>% filter(n > 1) pero de esta forma el tibble queda agrupado
+```
+
+A veces una tabla puede no tener una clave primaria explícita. Por ejemplo en la tabla vuelos se puede pensar el código de cola. Pero no es única, ni tampoco la fecha-vuelo. **Si una tabla no tiene una clave primaria, a veces es útil incluir una con mutate() y row_number() (número de fila)**.  
+Eso simplifica hacer coincidir observaciones una vez que haz hecho algunos filtros y quieres volver a verificar con los datos originales. Esto se llama **clave subrogada**.
+
+Una clave primaria y su correspondiente clave foránea en otra tabla forman una **relación**.  
+Las relaciones son típicamente uno-a-muchos. También uno-a-uno. en general muchos-muchos se subdivide en 2 uno-a-muchos.  
+
+## Uniones de transformación
+unión de transformación o **mutating join** permite combinar variables a partir de dos tablas. Primero busca coincidencias de observaciones de acuerdo a sus claves y luego copia las variables de una tabla en la otra. Tal como mutate(), las funciones de unión agregan variables hacia la derecha.
+
+Puedes combinar los datos de aerolinas y vuelos2 con left_join() (union_izquierda):
+
+```{r vuelos2}
+vuelos2 <- vuelos %>%
+  select(anio:dia, hora, origen, destino, codigo_cola, aerolinea)
+
+vuelos2 %>%
+  select(-origen, -destino) %>% 
+  left_join(aerolineas, by = "aerolinea")
+
+#asi se hace en R base
+# vuelos2 %>%
+#   select(-origen, -destino) %>%
+#   mutate(nombre = aerolineas$nombre[match(aerolinea, aerolineas$aerolinea)])
+```
+
+[Para ver en la practica como funciona](https://www.garrickadenbuie.com/project/tidyexplain/#inner-join)
+
