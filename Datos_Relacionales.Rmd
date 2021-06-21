@@ -223,7 +223,7 @@ Hay algunas consideraciones y pasos a tener en cuenta para que las uniones funci
 
 1. Comienza identificando las variables que forman las claves primarias en cada tabla.  
 2. Verifica que ninguna de las variables en la clave primaria esté perdida (NA). ¡Si hay un **valor faltante** no podrá identificar una observación!
-3. Verifica que las claves foráneas coincidan con las claves primarias en otra tabla. La mejor forma de hacerlo es mediante un anti_join(). Es común que las claves no coincidan debido a errores en la entrada de datos. Arreglar este problema requiere mucho trabajo.  
+3. Verifica que las **claves foráneas coincidan con las claves primarias en otra tabla**. La mejor forma de hacerlo es **mediante un anti_join()**. Es común que las claves no coincidan debido a errores en la entrada de datos. Arreglar este problema requiere mucho trabajo.  
 
 Si tienes claves perdidas, debes tener cuidado en el uso de unión interior versus unión exterior y considerar cuidadosamente si quieres descartar las filas que no tengan coincidencias.  
 
